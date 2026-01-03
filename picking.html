@@ -3,87 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Herbalife Picking System</title>
+    <title>Herbalife Picking System v8.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        .hb-green { color: #7dc242; }
-        .bg-hb-green { background-color: #7dc242; }
-        .bg-hb-dark { background-color: #5a8d2f; }
-        .scan-focus:focus { outline: none; border: 3px solid #7dc242; box-shadow: 0 0 15px rgba(125, 194, 66, 0.5); }
-        .row-complete { background-color: #d1fae5; border-left: 4px solid #10b981; }
-        .row-pending { background-color: #fef3c7; border-left: 4px solid #f59e0b; }
-        .row-error { background-color: #fee2e2; border-left: 4px solid #ef4444; }
+        :root { --hb-green: #7dc242; }
+        .bg-hb-green { background-color: var(--hb-green); }
+        .text-hb-green { color: var(--hb-green); }
+        .row-complete { background-color: #d1fae5 !important; border-left: 5px solid #10b981; }
+        .row-pending { background-color: #fef3c7 !important; border-left: 5px solid #f59e0b; }
+        .row-error { background-color: #fee2e2 !important; border-left: 5px solid #ef4444; }
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; display: none; margin-top: 10px; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen pb-10">
+<body class="bg-gray-100 min-h-screen">
 
-    <header class="bg-hb-green text-white p-4 shadow-lg sticky top-0 z-50">
+    <header class="bg-hb-green text-white p-4 shadow-md sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold tracking-tight">HERBALIFE PICKING</h1>
-            <div id="connection-status" class="text-xs bg-white text-green-600 px-2 py-1 rounded-full font-bold">EN LÍNEA</div>
+            <h1 class="font-bold text-lg tracking-tight">HERBALIFE NUTRITION</h1>
+            <div id="status" class="text-[10px] bg-white text-green-600 px-3 py-1 rounded-full font-bold shadow-sm">CONECTADO</div>
         </div>
     </header>
 
-    <div class="container mx-auto px-4 mt-6">
-        
+    <div class="container mx-auto px-4 py-6">
         <div class="grid grid-cols-3 gap-4 mb-6">
-            <div class="bg-white p-4 rounded-xl shadow text-center">
-                <span class="block text-gray-500 text-xs uppercase font-bold">Cargadas</span>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                <span class="block text-gray-400 text-[10px] uppercase font-bold">Órdenes</span>
                 <span id="stat-total" class="text-2xl font-black">0</span>
             </div>
-            <div class="bg-white p-4 rounded-xl shadow text-center border-b-4 border-hb-green">
-                <span class="block text-gray-500 text-xs uppercase font-bold text-hb-green">Listas</span>
-                <span id="stat-complete" class="text-2xl font-black">0</span>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center border-b-4 border-hb-green">
+                <span class="block text-hb-green text-[10px] uppercase font-bold">Listas</span>
+                <span id="stat-done" class="text-2xl font-black">0</span>
             </div>
-            <div class="bg-white p-4 rounded-xl shadow text-center border-b-4 border-yellow-400">
-                <span class="block text-gray-500 text-xs uppercase font-bold text-yellow-500">Pend.</span>
-                <span id="stat-pending" class="text-2xl font-black">0</span>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center border-b-4 border-yellow-400">
+                <span class="block text-yellow-500 text-[10px] uppercase font-bold">Pendientes</span>
+                <span id="stat-pend" class="text-2xl font-black">0</span>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <div class="space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <h2 class="font-bold mb-4 border-b pb-2">1. Configuración</h2>
-                    <input type="text" id="operario" placeholder="Nombre de Operario" class="w-full p-3 border rounded mb-3">
-                    <input type="text" id="grupo" placeholder="N° de Grupo" class="w-full p-3 border rounded mb-3">
-                    <button onclick="document.getElementById('fileInput').click()" class="w-full bg-gray-800 text-white font-bold py-3 rounded hover:bg-black transition">IMPORTAR EXCEL</button>
+            <div class="space-y-4">
+                <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100">
+                    <h2 class="text-sm font-bold mb-3 text-gray-700 uppercase">1. Datos del Grupo</h2>
+                    <input type="text" id="operario" placeholder="Nombre de Operario" class="w-full p-3 border rounded-lg mb-3 text-sm focus:ring-2 focus:ring-green-400 outline-none">
+                    <input type="text" id="grupo" placeholder="Número de Grupo" class="w-full p-3 border rounded-lg mb-3 text-sm focus:ring-2 focus:ring-green-400 outline-none">
+                    <button onclick="document.getElementById('fileInput').click()" class="w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-black transition text-sm shadow">IMPORTAR EXCEL</button>
                     <input type="file" id="fileInput" class="hidden" accept=".xlsx">
                 </div>
 
-                <div class="bg-white p-6 rounded-xl shadow-md border-2 border-hb-green">
-                    <h2 class="font-bold mb-2">2. Área de Escaneo</h2>
-                    <p class="text-xs text-gray-500 mb-4 italic">El sistema detecta automáticamente si es Orden (4L/E4) o SKU.</p>
-                    <input type="text" id="scanner" placeholder="Pistolear aquí..." class="scan-focus w-full p-4 text-xl border-2 rounded-lg font-mono">
-                    <div id="feedback" class="mt-4 p-3 rounded text-center font-bold text-sm hidden"></div>
+                <div class="bg-white p-5 rounded-xl shadow-md border-2 border-hb-green">
+                    <h2 class="text-sm font-bold mb-3 text-gray-700 uppercase">2. Escaneo de Picking</h2>
+                    <input type="text" id="scanner" placeholder="Escanear Orden o SKU..." class="w-full p-4 text-lg border-2 border-gray-100 rounded-xl focus:border-hb-green outline-none font-mono">
+                    
+                    <button onclick="toggleCamara()" class="mt-4 w-full bg-blue-500 text-white py-3 rounded-lg flex items-center justify-center gap-2 font-bold text-sm hover:bg-blue-600 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" /></svg>
+                        USAR CÁMARA DEL CELULAR
+                    </button>
+                    <div id="reader"></div>
+                    <div id="feedback" class="mt-3 p-3 rounded-lg text-center font-bold text-xs hidden"></div>
                 </div>
 
-                <button onclick="exportarReporte()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition">DESCARGAR REPORTE FINAL</button>
+                <button onclick="exportarReporte()" class="w-full bg-hb-green text-white font-bold py-4 rounded-xl shadow-lg hover:brightness-95 transition">DESCARGAR SUSTENTO FINAL</button>
             </div>
 
             <div class="lg:col-span-2">
-                <div class="bg-white p-6 rounded-xl shadow-md min-h-[400px]">
-                    <div class="flex justify-between items-center mb-4 border-b pb-4">
-                        <h2 class="text-lg font-bold uppercase">Orden: <span id="current-order-id" class="hb-green">-</span></h2>
-                        <span id="order-status-badge" class="hidden px-3 py-1 rounded-full text-xs font-bold"></span>
+                <div class="bg-white p-6 rounded-xl shadow-md min-h-[500px]">
+                    <div class="flex justify-between items-center mb-6 border-b pb-4">
+                        <h2 class="text-md font-bold uppercase text-gray-600">Orden Actual: <span id="display-order" class="text-hb-green">-</span></h2>
                     </div>
 
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
+                        <table class="w-full text-left text-sm">
                             <thead>
-                                <tr class="text-gray-400 uppercase text-[10px] tracking-widest">
-                                    <th class="py-3 px-2">SKU / Descripción</th>
-                                    <th class="py-3 px-2">Lote</th>
-                                    <th class="py-3 px-2 text-center">Cant</th>
-                                    <th class="py-3 px-2 text-center">Leído</th>
+                                <tr class="text-gray-400 uppercase text-[10px] tracking-wider border-b">
+                                    <th class="pb-3">Producto / SKU</th>
+                                    <th class="pb-3">Lote</th>
+                                    <th class="pb-3 text-center">Cant.</th>
+                                    <th class="pb-3 text-center">Leído</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-body">
+                            <tbody id="table-body" class="divide-y divide-gray-50">
                                 </tbody>
                         </table>
                     </div>
@@ -91,174 +94,170 @@
             </div>
         </div>
 
-        <footer class="mt-10 text-center text-gray-400 text-xs">
+        <footer class="mt-10 text-center text-gray-400 text-[10px] uppercase tracking-widest">
             Autor del proyecto: <span class="font-bold">Carlos Aviles</span>
         </footer>
     </div>
 
     <script>
-        // CONFIGURACIÓN FIREBASE (Debes reemplazar con tus credenciales)
-       <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyDTjhZ-4rwpc2_3YDe6Medl1Em2RRjV6aw",
-    authDomain: "herbalife-picking.firebaseapp.com",
-    databaseURL: "https://herbalife-picking-default-rtdb.firebaseio.com",
-    projectId: "herbalife-picking",
-    storageBucket: "herbalife-picking.firebasestorage.app",
-    messagingSenderId: "355289658624",
-    appId: "1:355289658624:web:f425745bcbbcd17ca32fe5",
-    measurementId: "G-H0GHSFESW0"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+        // --- CONFIGURACIÓN FIREBASE (REEMPLAZAR CON TUS DATOS) ---
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            databaseURL: "https://TU_PROYECTO.firebaseio.com",
+            projectId: "TU_PROYECTO",
         };
         firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const db = firebase.database();
 
         let currentOrder = null;
         let localData = {};
+        const html5QrCode = new Html5Qrcode("reader");
 
-        // --- LÓGICA DE CARGA EXCEL ---
+        // --- IMPORTAR EXCEL ---
         document.getElementById('fileInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             const reader = new FileReader();
-            reader.onload = (event) => {
-                const data = new Uint8Array(event.target.result);
+            reader.onload = (evt) => {
+                const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                // Formatear para Firebase: Orden -> Lista de líneas
-                const dbUpload = {};
-                json.forEach((row, index) => {
-                    const order = String(row.ordernumber || '').trim();
-                    if (!dbUpload[order]) dbUpload[order] = [];
-                    dbUpload[order].push({
+                let upload = {};
+                json.forEach((row) => {
+                    const ord = String(row.ordernumber || '').trim();
+                    if (!ord) return;
+                    if (!upload[ord]) upload[ord] = [];
+                    upload[ord].push({
                         sku: String(row.SKU || '').trim().toUpperCase(),
-                        desc: row.DescripcionLocal || '',
+                        desc: row.DescripcionLocal || 'SIN DESCRIPCIÓN',
                         cant: parseInt(row.Cant) || 0,
                         lote: row.Lote || '-',
-                        scanned: 0,
-                        lineId: index
+                        scanned: 0
                     });
                 });
 
-                database.ref('picking_db').set(dbUpload)
-                    .then(() => alert("Base de datos cargada y sincronizada."));
+                db.ref('picking_live').set(upload)
+                    .then(() => alert("✅ Base de datos cargada correctamente."));
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // --- ESCUCHA EN TIEMPO REAL ---
-        database.ref('picking_db').on('value', (snapshot) => {
-            localData = snapshot.val() || {};
-            actualizarDashboard();
+        // --- SINCRONIZACIÓN EN TIEMPO REAL ---
+        db.ref('picking_live').on('value', (snap) => {
+            localData = snap.val() || {};
+            renderStats();
             if (currentOrder) renderOrden(currentOrder);
         });
 
-        // --- MANEJO DE ESCANEO ---
-        const scanner = document.getElementById('scanner');
-        scanner.addEventListener('input', (e) => {
+        // --- PROCESAR ESCANEO ---
+        const scannerInput = document.getElementById('scanner');
+        scannerInput.addEventListener('input', (e) => {
             const val = e.target.value.trim().toUpperCase();
             if (!val) return;
 
-            // 1. ¿Es una orden? (Empieza con 4L o E4)
+            // Detectar si es Orden (4L / E4)
             if (val.startsWith('4L') || val.startsWith('E4')) {
                 if (localData[val]) {
                     currentOrder = val;
-                    showFeedback(Orden ${val} activada, 'green');
+                    showFeedback(📦 Orden ${val} seleccionada, 'green');
                     renderOrden(val);
-                    scanner.value = '';
                 } else {
-                    showFeedback(Orden ${val} no existe, 'red');
-                    scanner.value = '';
+                    showFeedback("❌ La orden no existe en la base", "red");
                 }
+                scannerInput.value = '';
                 return;
             }
 
-            // 2. ¿Es un SKU? (Si hay orden activa)
+            // Detectar si es SKU
             if (currentOrder) {
-                procesarSKU(currentOrder, val);
-                scanner.value = '';
+                validarSKU(val);
+                scannerInput.value = '';
             } else {
-                showFeedback("Escanea primero una ORDEN", 'red');
-                scanner.value = '';
+                showFeedback("⚠️ Escanee una ORDEN primero", "red");
+                scannerInput.value = '';
             }
         });
 
-        function procesarSKU(orderId, sku) {
-            const lines = localData[orderId];
-            // REGLA CRÍTICA: Buscar línea por línea (Cascada)
+        function validarSKU(sku) {
+            let lines = localData[currentOrder];
             let found = false;
+
+            // Lógica de Cascada (REGLA CRÍTICA)
             for (let line of lines) {
                 if (line.sku === sku && line.scanned < line.cant) {
-                    line.scanned += 1;
-                    database.ref(picking_db/${orderId}).set(lines);
-                    showFeedback(SKU ${sku} OK, 'green');
+                    line.scanned++;
+                    db.ref(picking_live/${currentOrder}).set(lines);
+                    showFeedback(✅ SKU ${sku} OK, "green");
                     found = true;
                     break;
                 }
             }
 
-            if (!found) {
-                showFeedback(Error: SKU ${sku} incorrecto o excedido, 'red');
-            }
+            if (!found) showFeedback(🚫 SKU ${sku} NO PERTENECE O ESTÁ LLENO, "red");
         }
 
-        // --- RENDERIZADO Y UI ---
-        function renderOrden(orderId) {
-            const lines = localData[orderId];
+        // --- RENDERIZADO UI ---
+        function renderOrden(id) {
             const tbody = document.getElementById('table-body');
-            document.getElementById('current-order-id').innerText = orderId;
+            document.getElementById('display-order').innerText = id;
             tbody.innerHTML = '';
 
-            let completa = true;
+            localData[id].forEach(l => {
+                const isComplete = l.scanned >= l.cant;
+                const tr = document.createElement('tr');
+                if (isComplete) tr.className = 'row-complete';
+                else if (l.scanned > 0) tr.className = 'row-pending';
 
-            lines.forEach(l => {
-                if (l.scanned < l.cant) completa = false;
-                const row = document.createElement('tr');
-                row.className = l.scanned >= l.cant ? 'row-complete' : (l.scanned > 0 ? 'row-pending' : '');
-                row.innerHTML = `
-                    <td class="py-4 px-2 font-bold">${l.sku}<br><span class="text-[10px] font-normal text-gray-500">${l.desc}</span></td>
-                    <td class="py-4 px-2 text-gray-400">${l.lote}</td>
-                    <td class="py-4 px-2 text-center font-bold">${l.cant}</td>
-                    <td class="py-4 px-2 text-center text-lg">${l.scanned}</td>
+                tr.innerHTML = `
+                    <td class="py-4 px-2 font-bold">${l.sku}<br><span class="text-[9px] font-normal text-gray-400">${l.desc}</span></td>
+                    <td class="py-4 px-2 text-gray-400 font-mono text-xs">${l.lote}</td>
+                    <td class="py-4 px-2 text-center font-black">${l.cant}</td>
+                    <td class="py-4 px-2 text-center text-lg font-black">${l.scanned}</td>
                 `;
-                tbody.appendChild(row);
+                tbody.appendChild(tr);
             });
         }
 
-        function actualizarDashboard() {
-            const orders = Object.keys(localData);
-            let completadas = 0;
-            orders.forEach(id => {
-                if (localData[id].every(l => l.scanned >= l.cant)) completadas++;
+        function renderStats() {
+            const keys = Object.keys(localData);
+            let done = 0;
+            keys.forEach(k => {
+                if (localData[k].every(l => l.scanned >= l.cant)) done++;
             });
-
-            document.getElementById('stat-total').innerText = orders.length;
-            document.getElementById('stat-complete').innerText = completadas;
-            document.getElementById('stat-pending').innerText = orders.length - completadas;
+            document.getElementById('stat-total').innerText = keys.length;
+            document.getElementById('stat-done').innerText = done;
+            document.getElementById('stat-pend').innerText = keys.length - done;
         }
 
         function showFeedback(msg, color) {
             const f = document.getElementById('feedback');
             f.innerText = msg;
-            f.className = mt-4 p-3 rounded text-center font-bold text-sm block ${color === 'green' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'};
+            f.className = mt-4 p-3 rounded-lg text-center font-bold text-xs block ${color === 'green' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'};
             setTimeout(() => f.classList.add('hidden'), 2000);
         }
 
+        function toggleCamara() {
+            const r = document.getElementById('reader');
+            if (r.style.display === 'block') {
+                html5QrCode.stop();
+                r.style.display = 'none';
+            } else {
+                r.style.display = 'block';
+                html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
+                (text) => { 
+                    const scanVal = text.trim().toUpperCase();
+                    if(scanVal.startsWith('4L') || scanVal.startsWith('E4')){
+                         currentOrder = scanVal;
+                         renderOrden(scanVal);
+                    } else if(currentOrder) {
+                         validarSKU(scanVal);
+                    }
+                });
+            }
+        }
+
         function exportarReporte() {
-            const op = document.getElementById('operario').value || 'Sin Nombre';
+            const op = document.getElementById('operario').value || 'S/N';
             const gr = document.getElementById('grupo').value || '00';
             const fecha = new Date().toLocaleDateString();
             
@@ -275,8 +274,8 @@
 
             const ws = XLSX.utils.json_to_sheet(dataExport);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Sustento Picking");
-            XLSX.writeFile(wb, Sustento_Herbalife_G${gr}_${fecha}.xlsx);
+            XLSX.utils.book_append_sheet(wb, ws, "Sustento");
+            XLSX.writeFile(wb, Picking_Herbalife_G${gr}_${fecha}.xlsx);
         }
     </script>
 </body>
