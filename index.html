@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Herbalife Picking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body class="bg-gray-100">
+    <header class="bg-[#7dc242] p-4 text-white font-bold text-center shadow-md">
+        HERBALIFE PICKING - EN VIVO
+    </header>
+    
+    <div class="p-4 max-w-4xl mx-auto space-y-4 pb-20">
+        <div class="bg-white p-4 rounded-lg shadow">
+            <input type="text" id="op" placeholder="Escribe tu nombre" class="border p-2 w-full mb-3 rounded">
+            <button onclick="document.getElementById('file').click()" class="bg-black text-white p-4 w-full rounded-lg font-bold">1. CARGAR EXCEL</button>
+            <input type="file" id="file" class="hidden" accept=".xlsx">
+        </div>
+
+        <div class="bg-white p-4 rounded-lg shadow border-2 border-[#7dc242]">
+            <p class="text-[10px] text-gray-500 font-bold uppercase">Pistolea aquí (Orden o SKU):</p>
+            <input type="text" id="sc" autocomplete="off" class="border-2 border-gray-200 p-5 w-full text-3xl rounded-xl focus:border-[#7dc242] outline-none font-mono">
+            <div id="aviso" class="mt-2 text-center font-bold text-sm hidden p-2 rounded"></div>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-md min-h-[300px]">
+            <h2 class="font-black text-gray-700 mb-4 border-b pb-2">ORDEN: <span id="act" class="text-[#7dc242]">-</span></h2>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 text-xs text-left border-b">
+                        <th class="pb-2">SKU / PRODUCTO</th>
+                        <th class="pb-2 text-center">CANT</th>
+                        <th class="pb-2 text-center">LISTO</th>
+                    </tr>
+                </thead>
+                <tbody id="lista" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE FIREBASE (YA REEMPLAZADA)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAJvpmQvqwDtagO6jL1AaeLGYLNkT8N29M",
+            authDomain: "herbalife-e5734.firebaseapp.com",
+            databaseURL: "https://herbalife-e5734-default-rtdb.firebaseio.com",
+            projectId: "herbalife-e5734",
+            storageBucket: "herbalife-e5734.firebasestorage.app",
+            messagingSenderId: "566902120796",
+            appId: "1:566902120796:web:e2a12c1bae36059d332199"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let ordenActual = null;
+        let datos = {};
+
+        // Función para subir el Excel a la nube
+        document.getElementById('file').addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const workbook = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                let temp = {};
+                json.forEach(r => {
+                    const ord = String(r.ordernumber || '').trim();
+                    if(!ord) return;
+                    if(!temp[ord]) temp[ord] = [];
+                    temp[ord].push({ 
+                        sku: String(r.SKU).toUpperCase(), 
+                        cant: parseInt(r.Cant), 
+                        sc: 0, 
+                        desc: r.DescripcionLocal || '' 
+                    });
+                });
+                db.ref('picking').set(temp).then(() => alert("✅ BASE ACTUALIZADA EN RED"));
+            };
+            reader.readAsArrayBuffer(e.target.files[0]);
+        });
+
+        // Sincronización en tiempo real con todos los dispositivos
+        db.ref('picking').on('value', (s) => {
+            datos = s.val() || {};
+            if(ordenActual) dibujar();
+        });
+
+        // Lógica de pistoleo
+        document.getElementById('sc').addEventListener('input', (e) => {
+            const v = e.target.value.trim().toUpperCase();
+            if(!v) return;
+            
+            // Si escaneas una orden (Empieza con 4L o E4)
+            if(v.startsWith('4L') || v.startsWith('E4')) {
+                if(datos[v]) { 
+                    ordenActual = v; 
+                    dibujar(); 
+                    mostrarAviso(Orden ${v} ACTIVADA, 'bg-green-100 text-green-700');
+                } else {
+                    mostrarAviso("❌ Orden no encontrada", 'bg-red-100 text-red-700');
+                }
+            } else if(ordenActual) { // Si escaneas un producto (SKU)
+                let filas = datos[ordenActual];
+                let encontrado = false;
+                for(let f of filas) {
+                    if(f.sku === v && f.sc < f.cant) {
+                        f.sc++;
+                        db.ref(picking/${ordenActual}).set(filas);
+                        mostrarAviso(✅ ${v} LEÍDO, 'bg-green-500 text-white');
+                        encontrado = true;
+                        break;
+                    }
+                }
+                if(!encontrado) mostrarAviso("❌ SKU INCORRECTO O YA COMPLETO", 'bg-red-500 text-white');
+            }
+            e.target.value = '';
+        });
+
+        function dibujar() {
+            document.getElementById('act').innerText = ordenActual;
+            const tabla = document.getElementById('lista');
+            tabla.innerHTML = datos[ordenActual].map(f => `
+                <tr class="${f.sc >= f.cant ? 'bg-green-100' : (f.sc > 0 ? 'bg-yellow-50' : '')}">
+                    <td class="py-4 border-b font-bold">${f.sku}<br><span class="text-[10px] text-gray-400 font-normal italic">${f.desc}</span></td>
+                    <td class="py-4 border-b text-center font-bold text-xl">${f.cant}</td>
+                    <td class="py-4 border-b text-center text-2xl font-black text-[#7dc242]">${f.sc}</td>
+                </tr>
+            `).join('');
+        }
+
+        function mostrarAviso(m, c) {
+            const a = document.getElementById('aviso');
+            a.innerText = m; a.className = mt-2 text-center font-bold text-sm p-2 rounded ${c};
+            a.classList.remove('hidden');
+            setTimeout(() => a.classList.add('hidden'), 2000);
+        }
+    </script>
+</body>
+</html>
